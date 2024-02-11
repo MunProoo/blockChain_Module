@@ -1,0 +1,10 @@
+[database.mongo]
+dataSource = "mongodb://localhost:27017"
+db = "event-catch-module"
+
+nftCollection = "nftCollection"
+nft = "nft"
+tx = "tx"
+
+[node]
+uri = "https://polygon-mumbai.infura.io/v3/6500a40b1ae54ccd949e12e1cb67af38"
