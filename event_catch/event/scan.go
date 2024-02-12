@@ -7,10 +7,10 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/hacpy/go-ethereum"
-	"github.com/hacpy/go-ethereum/common"
-	ethTypes "github.com/hacpy/go-ethereum/core/types"
-	"github.com/hacpy/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/common"
+	ethTypes "github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/ethclient"
 )
 
 type Scan struct {
@@ -27,13 +27,18 @@ func NewScan(config *config.Config, client *ethclient.Client, catchEventList []c
 	}
 
 	eventLog := make(chan []ethTypes.Log, 100)
-	scanCollection := common.HexToAddress("")
+
+	//contract 배포 시 contract의 address -> DB에 저장하거나 config를 통해서 제어하면 좋겠네
+	scanCollection := common.HexToAddress("0xd721d1E5Df6cf45AB88F3F834c08a361390898F7")
 
 	go s.lookingScan(config.Node.StartBlock, scanCollection, catchEventList, eventLog)
 
 	return s, eventLog, nil
 }
 
+// Contract : 0xd721d1E5Df6cf45AB88F3F834c08a361390898F7
+// 배포 블록 : 45833213
+// Mint 블록 : 45834926
 func (s *Scan) lookingScan(
 	startBlock int64,
 
@@ -47,22 +52,36 @@ func (s *Scan) lookingScan(
 	startReadBlock, to := startBlock, uint64(0)
 
 	s.FilterQuery = ethereum.FilterQuery{
-		Addresses: []common.Address{},
+		Addresses: []common.Address{scanCollection},
 		Topics:    [][]common.Hash{catchEventList},
 		FromBlock: big.NewInt(startReadBlock),
 	}
 
-	for {
-		time.Sleep(time.Second * 5)
+	fmt.Println("FromBlcok : ", s.FilterQuery.FromBlock)
 
+	for {
 		ctx := context.Background()
+		time.Sleep(time.Millisecond * 100)
+
 		if maxBlock, err := s.client.BlockNumber(ctx); err != nil {
-			fmt.Println("Get Block Number", "err", err)
-			// continue
+			fmt.Println("Get Block Number", "err", err.Error())
+			// Get Block Number err The method platon_blockNumber does not exist/is not available
+			// 해당 에러인 경우 remix에서 컨트랙트 배포를 infura를 통해 만든 API서버로 배포하지 않아서 임을 의심하도록.
+
+			// ethereum 메서드를 사용해야하는데, ethereum classic 메서드를 사용해서 라고 한다..? 뭐지
+
+			/* 의존성 문제였다.
+			"github.com/hacpy/go-ethereum" 이 패키지를 의존하고 있었는데
+			"github.com/ethereum/go-ethereum" 이 패키지를 의존해야함.
+			*/
+
 		} else {
 			to = maxBlock
 
 			if to > uint64(startReadBlock) {
+
+				fmt.Println("from block", s.FilterQuery.FromBlock, "to block", to)
+
 				s.FilterQuery.FromBlock = big.NewInt(int64(startReadBlock))
 				s.FilterQuery.ToBlock = big.NewInt(int64(to))
 				tryCount := 1
